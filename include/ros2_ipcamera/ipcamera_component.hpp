@@ -71,6 +71,7 @@ namespace ros2_ipcamera
   private:
     std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
     std::string camera_calibration_file_param_;
+    std::string frame_id_;
 
     image_transport::CameraPublisher pub_;
     rclcpp::QoS qos_;
@@ -87,7 +88,8 @@ namespace ros2_ipcamera
     void
     convert_frame_to_message(
       const cv::Mat & frame,
-      size_t frame_id,
+      // size_t frame_id,
+      std::string frame_id,
       sensor_msgs::msg::Image & msg,
       sensor_msgs::msg::CameraInfo & camera_info_msg);
   };
