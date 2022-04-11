@@ -16,6 +16,7 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include <opencv2/core/utils/logger.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/logger.hpp>
 #include "sensor_msgs/msg/image.hpp"
@@ -92,6 +93,9 @@ namespace ros2_ipcamera
       std::string frame_id,
       sensor_msgs::msg::Image & msg,
       sensor_msgs::msg::CameraInfo & camera_info_msg);
+
+    bool
+    video_capture_open();
   };
 }  // namespace ros2_ipcamera
 

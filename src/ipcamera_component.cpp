@@ -32,6 +32,7 @@ namespace ros2_ipcamera
                 "middleware: %s", rmw_get_implementation_identifier());
 
     // Declare parameters.
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_ERROR);
     this->initialize_parameters();
 
     this->configure();
@@ -71,16 +72,16 @@ namespace ros2_ipcamera
     RCLCPP_INFO(node_logger, "frame_id: %s", frame_id_.c_str());
 
     // TODO(Tasuku): move to on_configure() when rclcpp_lifecycle available.
-    this->cap_.open(source_);
+    // this->cap_.open(source_);
 
     // Set the width and height based on command line arguments.
     // The width, height has to match the available resolutions of the IP camera.
-    this->cap_.set(cv::CAP_PROP_FRAME_WIDTH, static_cast<double>(width_));
-    this->cap_.set(cv::CAP_PROP_FRAME_HEIGHT, static_cast<double>(height_));
-    if (!this->cap_.isOpened()) {
-      RCLCPP_ERROR(node_logger, "Could not open video stream");
-      throw std::runtime_error("Could not open video stream");
-    }
+    // this->cap_.set(cv::CAP_PROP_FRAME_WIDTH, static_cast<double>(width_));
+    // this->cap_.set(cv::CAP_PROP_FRAME_HEIGHT, static_cast<double>(height_));
+    // if (!this->cap_.isOpened()) {
+    //   RCLCPP_ERROR(node_logger, "Could not open video stream");
+    //   throw std::runtime_error("Could not open video stream");
+    // }
 
     // TODO(Tasuku): move to on_configure() when rclcpp_lifecycle available.
     // https://docs.ros.org/api/camera_info_manager/html/classcamera__info__manager_1_1CameraInfoManager.html#_details
@@ -132,6 +133,16 @@ namespace ros2_ipcamera
 
   }
 
+  bool
+  IpCamera::video_capture_open()
+  {
+    this->cap_.open(source_);
+    this->cap_.set(cv::CAP_PROP_FRAME_WIDTH, static_cast<double>(width_));
+    this->cap_.set(cv::CAP_PROP_FRAME_HEIGHT, static_cast<double>(height_));
+
+    return this->cap_.isOpened();
+  }
+
   void
   IpCamera::execute()
   {
@@ -145,19 +156,28 @@ namespace ros2_ipcamera
     // size_t frame_id = 0;
     // Our main event loop will spin until the user presses CTRL-C to exit.
     while (rclcpp::ok()) {
-      // Initialize a shared pointer to an Image message.
-      auto msg = std::make_unique<sensor_msgs::msg::Image>();
-      msg->is_bigendian = false;
+      if (this->cap_.isOpened()) {
+        // Initialize a shared pointer to an Image message.
+        auto msg = std::make_unique<sensor_msgs::msg::Image>();
+        msg->is_bigendian = false;
 
-      // Get the frame from the video capture.
-      this->cap_ >> frame;
-      // Check if the frame was grabbed correctly
-      if (!frame.empty()) {
-        // Convert to a ROS image
-        convert_frame_to_message(frame, frame_id_, *msg, *camera_info_msg);
-        // Publish the image message and increment the frame_id.
-        this->pub_.publish(std::move(msg), camera_info_msg);
-        // ++frame_id;
+        // Get the frame from the video capture.
+        // Check if the frame was grabbed correctly
+        if (this->cap_.read(frame)) {
+          // Convert to a ROS image
+          convert_frame_to_message(frame, frame_id_, *msg, *camera_info_msg);
+          // Publish the image message and increment the frame_id.
+          this->pub_.publish(std::move(msg), camera_info_msg);
+          // ++frame_id;
+        } else {
+          this->cap_.release();
+        }
+      } else {
+        if (video_capture_open()) {
+          // Reconnect to sync time
+          this->cap_.release();
+          video_capture_open();
+        }
       }
       loop_rate.sleep();
     }
